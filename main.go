@@ -141,7 +141,7 @@ func main() {
                 if sessions[i].healthy {
                         go func(i int) {
                                 startTime := time.Now()
-                                go sessions[i].sendProc(*ThroughputPerSession, collectChan, &wg)
+                                sessions[i].sendProc(*ThroughputPerSession, collectChan, &wg)
                                 log.Println("*** Overall SyncSend time is: ", time.Now().Sub(startTime))
                         }(i)
                 } else {
