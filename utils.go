@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	//"constraints"
 
 	"golang.org/x/exp/constraints"
@@ -16,12 +17,13 @@ import (
 	"github.com/fiorix/go-smpp/smpp/pdu/pdutext"
 )
 
-func NewSmppConnection(port int, ip string, username string, password string, send_rate int) (*SmppConnection, error) {
+func NewSmppConnection(port int, ip string, username string, password string, systemType string, send_rate int) (*SmppConnection, error) {
 	lm := rate.NewLimiter(rate.Limit(send_rate), 1) // Max rate of 10/s.
 	session := &smpp.Transceiver{
 		Addr:        fmt.Sprintf("%s:%d", ip, port),
 		User:        username,
 		Passwd:      password,
+		SystemType:  systemType,
 		Handler:     nil, // Handle incoming SM or delivery receipts.
 		RateLimiter: lm,  // Optional rate limiter.
 	}
@@ -70,7 +72,7 @@ func (smppc SmppConnection) sendProc(amount int, respTimeC chan<- []time.Duratio
 	}()
 	for i := 0; i < amount; i++ {
 		if smppc.healthy {
-			
+
 			t := time.Now()
 			sm, err := smppc.session.Submit(&smpp.ShortMessage{
 				Src:      from,
@@ -84,7 +86,6 @@ func (smppc SmppConnection) sendProc(amount int, respTimeC chan<- []time.Duratio
 			fmt.Println("Submit_resp duration", dt)
 			if err != nil {
 				fmt.Println(err)
-				return
 			}
 			fmt.Println(sm.RespID())
 		} else {
@@ -117,10 +118,10 @@ func (smppc SmppConnection) healthProc() {
 	}
 }
 
-func startBind(N int, ip string, port int, username string, password string, perSecond int) {
+func startBind(N int, ip string, port int, username string, password string, systemType string, perSecond int) {
 	for i := 0; i <= N-1; i++ {
 		log.Println("IDX: ", i)
-		s, err := NewSmppConnection(port, ip, username, password, perSecond)
+		s, err := NewSmppConnection(port, ip, username, password, systemType, perSecond)
 		if err != nil {
 			log.Fatalf("Failed to create TRX session", err)
 		}
@@ -154,16 +155,20 @@ func startSubmit(wg *sync.WaitGroup, sess int, count int, from string, to string
 
 func calcResults[T constraints.Ordered](data []T) (T, T, T) {
 	var sum, max, mini T
-	max = data[0]
-	mini = data[0]
-	for _, i := range data {
-		sum += i
-		if i > max {
-			max = i
-		} else if i < mini {
-			mini = i
+
+	if len(data) > 0 {
+		max = data[0]
+		mini = data[0]
+		for _, i := range data {
+			sum += i
+			if i > max {
+				max = i
+			} else if i < mini {
+				mini = i
+			}
 		}
 	}
+
 	return sum, max, mini
 }
 
